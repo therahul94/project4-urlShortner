@@ -22,7 +22,13 @@ const createShortUrl = async function(req,res){
     res.status(201).send({status:true,data:createUrl})
 }
 
+const getUrl= async function(req,res){
+    const urlCode = req.params.urlCode
+    const isurlCode = await urlModel.findOne({urlCode:urlCode})
+    res.redirect(isurlCode.longUrl)
+}
 
 module.exports.createShortUrl = createShortUrl
+module.exports.getUrl = getUrl
 
 
