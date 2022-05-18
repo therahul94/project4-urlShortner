@@ -56,28 +56,55 @@ const createShortUrl = async function(req,res){
         return res.status(400).send({status:false,message:"longUrl you entered is not a valid url format"})
     }
      
-    const cachedUrlData = await GET_ASYNC(`${longUrl}`)
-    if(cachedUrlData) return res.status(200).send({status: true, Data: cachedUrlData})
+    // const cachedUrlData = await GET_ASYNC (`${longUrl}`)
+    // console.log(cachedUrlData)
+    // if(cachedUrlData) return res.status(200).send({status: true, Data: JSON.parse(cachedUrlData)})
 
     const isLongUrlExist = await urlModel.findOne({longUrl: longUrl})
     if(isLongUrlExist){
-        const cachedUrlData = await SET_ASYNC ()
         return res.status(200).send({status: true, Data: isLongUrlExist})
     }
 
     const urlCode = shortId.generate().toLowerCase()
     const shortUrl = baseUrl+"/"+urlCode
+
+    // await SET_ASYNC (`${urlCode}`, JSON.stringify(isLongUrlExist))
+
     const finalData = {
         urlCode : urlCode,
         longUrl: longUrl,
         shortUrl: shortUrl
     }
     const createUrl = await urlModel.create(finalData)
+    await SET_ASYNC (`${longUrl}`, JSON.stringify(isLongUrlExist))
+    await SET_ASYNC (`${urlCode}`, JSON.stringify(longUrl))
     res.status(201).send({status:true,data:createUrl})
 
 }
 
+const getUrl = async function (req, res){
+    try{
+        const urlCode = req.params.urlCode
+        const isCachedLongUrl = await GET_ASYNC (`${urlCode}`)
+        const parsedLongUrl = JSON.parse(isCachedLongUrl)
 
-module.exports.createShortUrl = createShortUrl
+        if(parsedLongUrl){
+            return res.redirect(parsedLongUrl)
+        }
+        else{
+            const findUrl = await urlModel.findOne({urlCode: urlCode})
+            if(!findUrl)
+                return res.status(404).send({status: false, message: "UrlCode not found"})
+            
+            return res.redirect(findUrl.longUrl)
+        }
+    }
+    catch (error){
+        console.log(error)
+        return res.status(500).send({status: false, message: error.message})
+    }
+}
+
+module.exports = {createShortUrl, getUrl}
 
 
