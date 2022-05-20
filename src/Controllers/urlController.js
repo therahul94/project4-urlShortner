@@ -102,7 +102,7 @@ const getUrl = async function (req, res){
         const urlCode = req.params.urlCode
 
         if(!shortId.isValid(urlCode)){
-            return res.status({status: false, message: "Invalid urlCode"})
+            return res.status(400).send({status: false, message: "Invalid urlCode"})
         }
 
         const isCachedLongUrl = await GET_ASYNC (urlCode)
