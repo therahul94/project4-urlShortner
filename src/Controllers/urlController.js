@@ -43,22 +43,25 @@ const isValid = function(value){
 const createShortUrl = async function(req,res){
 
     const baseUrl = `http://localhost:3000`;
-    const longUrl = req.body.longUrl
+    let longUrl = req.body.longUrl
+
 
     if(!isValid(longUrl)){
         return res.status(400).send({status: false, message: "longUrl is not present"})
     }
+
+    longUrl = longUrl.trim()
 
     if(!validUrl.isUri(baseUrl)){
         return res.status(400).send({status: false, message: "baseUrl you entered is not a valid url format"})
     }
 
     if(!validUrl.isUri(longUrl)){
-        return res.status(400).send({status:false,message:"longUrl you entered is not a valid url format"})
+        return res.status(400).send({status:false,message:"Invalid longUrl"})
     }
      
-    const cachedUrlData = await GET_ASYNC (`${longUrl}`)
-    if(cachedUrlData) return res.status(200).send({status: true, Data: JSON.parse(cachedUrlData)})
+    // const cachedUrlData = await GET_ASYNC (`${longUrl}`)
+    // if(cachedUrlData) return res.status(200).send({status: true, Data: JSON.parse(cachedUrlData)})
 
     const isLongUrlExist = await urlModel.findOne({longUrl: longUrl})
     if(isLongUrlExist){
@@ -68,8 +71,8 @@ const createShortUrl = async function(req,res){
 
     const urlCode = shortId.generate().toLowerCase()
 
-    const cachedUrlCode = await GET_ASYNC (`${urlCode}`)
-    if(cachedUrlCode) return res.status(200).send({status: true, message: "urlCode is already present in DB. Please hit this API again."})
+    // const cachedUrlCode = await GET_ASYNC (`${urlCode}`)
+    // if(cachedUrlCode) return res.status(200).send({status: true, message: "urlCode is already present in DB. Please hit this API again."})
 
     const isUrlCodeExist = await urlModel.findOne({urlCode: urlCode})
     if(isUrlCodeExist){
