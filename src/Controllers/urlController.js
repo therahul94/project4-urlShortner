@@ -22,6 +22,7 @@ redisClient.on("connect", async function () {
 
 
 
+
 //1. connect to the server
 //2. use the commands :
 
@@ -56,19 +57,27 @@ const createShortUrl = async function(req,res){
         return res.status(400).send({status:false,message:"longUrl you entered is not a valid url format"})
     }
      
-    // const cachedUrlData = await GET_ASYNC (`${longUrl}`)
-    // console.log(cachedUrlData)
-    // if(cachedUrlData) return res.status(200).send({status: true, Data: JSON.parse(cachedUrlData)})
+    const cachedUrlData = await GET_ASYNC (`${longUrl}`)
+    if(cachedUrlData) return res.status(200).send({status: true, Data: JSON.parse(cachedUrlData)})
 
     const isLongUrlExist = await urlModel.findOne({longUrl: longUrl})
     if(isLongUrlExist){
         return res.status(200).send({status: true, Data: isLongUrlExist})
     }
 
-    const urlCode = shortId.generate().toLowerCase()
-    const shortUrl = baseUrl+"/"+urlCode
 
-    // await SET_ASYNC (`${urlCode}`, JSON.stringify(isLongUrlExist))
+    const urlCode = shortId.generate().toLowerCase()
+
+    const cachedUrlCode = await GET_ASYNC (`${urlCode}`)
+    if(cachedUrlCode) return res.status(200).send({status: true, message: "urlCode is already present in DB. Please hit this API again."})
+
+    const isUrlCodeExist = await urlModel.findOne({urlCode: urlCode})
+    if(isUrlCodeExist){
+        return res.status(200).send({status: true, message: "urlCode is already present in DB. Please hit this API again."})
+    }
+
+
+    const shortUrl = baseUrl+"/"+urlCode
 
     const finalData = {
         urlCode : urlCode,
@@ -76,11 +85,14 @@ const createShortUrl = async function(req,res){
         shortUrl: shortUrl
     }
     const createUrl = await urlModel.create(finalData)
-    // await SET_ASYNC (`${longUrl}`, JSON.stringify(longUrl))
-    // await SET_ASYNC (`${urlCode}`, JSON.stringify(longUrl))
-    res.status(201).send({status:true,data:createUrl})
 
+    if(createUrl) {
+        await SET_ASYNC (`${longUrl}`, JSON.stringify(finalData))
+        await SET_ASYNC (`${urlCode}`, JSON.stringify(longUrl))
+        res.status(201).send({status:true,data:finalData})
+    }
 }
+
 
 const getUrl = async function (req, res){
     try{
@@ -104,30 +116,6 @@ const getUrl = async function (req, res){
         return res.status(500).send({status: false, message: error.message})
     }
 }
-
-// const getUrl = async function (req, res) {
-//     const getDataFromCache = await GET_ASYNC(`${req.params.urlCode}`);
-//     if (getDataFromCache) {
-//       // console.log(getDataFromCache)
-//       return res.status(302).redirect(getDataFromCache);
-      
-//     } 
-//     else {
-//       const url_code = req.params.urlCode;
-//       const urlData = await urlModel.findOne({ urlCode: url_code }).select({_id:0,longUrl:1});
-//       if (!urlData) {
-//         return res
-//           .status(404)
-//           .send({
-//             status: false,
-//             message:
-//               "No URL is found with the given code. Please enter valid URL code",
-//           })}
-//       await SET_ASYNC(`${req.params.urlCode}`, JSON.stringify(urlData.longUrl))
-//       res.status(302).redirect(urlData.longUrl);
-//       // console.log(urlData.longUrl)
-//         }
-//   };
 
 
 
