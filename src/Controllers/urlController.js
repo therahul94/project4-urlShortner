@@ -100,18 +100,23 @@ const createShortUrl = async function(req,res){
 const getUrl = async function (req, res){
     try{
         const urlCode = req.params.urlCode
+
+        if(!shortId.isValid(urlCode)){
+            return res.status({status: false, message: "Invalid urlCode"})
+        }
+
         const isCachedLongUrl = await GET_ASYNC (urlCode)
         const parsedLongUrl = JSON.parse(isCachedLongUrl)
 
         if(parsedLongUrl){
-            return res.redirect(parsedLongUrl)
+            return res.status(302).redirect(parsedLongUrl)
         }
         else{
             const findUrl = await urlModel.findOne({urlCode: urlCode})
             if(!findUrl)
                 return res.status(404).send({status: false, message: "UrlCode not found"})
             await SET_ASYNC(`${urlCode}`, JSON.stringify(findUrl.longUrl))
-            return res.redirect(findUrl.longUrl)
+            return res.status(302).redirect(findUrl.longUrl)
         }
     }
     catch (error){
