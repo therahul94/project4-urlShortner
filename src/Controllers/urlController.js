@@ -63,7 +63,7 @@ const createShortUrl = async function(req,res){
     // const cachedUrlData = await GET_ASYNC (`${longUrl}`)
     // if(cachedUrlData) return res.status(200).send({status: true, Data: JSON.parse(cachedUrlData)})
 
-    const isLongUrlExist = await urlModel.findOne({longUrl: longUrl})
+    const isLongUrlExist = await urlModel.findOne({longUrl: longUrl}).select({urlCode:1,longUrl:1,shortUrl:1,_id:0})
     if(isLongUrlExist){
         return res.status(200).send({status: true, Data: isLongUrlExist})
     }
