@@ -1,7 +1,5 @@
-// const express = ("express")
 const urlModel = require("../Models/urlModel")
 const shortId = require("shortid")
-const validUrl = require("valid-url")
 const redis = require("redis");
 const { promisify } = require("util");
 
@@ -32,7 +30,7 @@ const SET_ASYNC = promisify(redisClient.SET).bind(redisClient);
 const GET_ASYNC = promisify(redisClient.GET).bind(redisClient);
 
 
-const isValid = function(value){
+const isValidChecker = function(value){
     if(typeof value === 'undefined' || typeof value === null) return false
     if(typeof value === 'string' && value.trim().length === 0) return false
     return true
@@ -45,40 +43,49 @@ const createShortUrl = async function(req,res){
     const baseUrl = `http://localhost:3000`;
     let longUrl = req.body.longUrl
 
-
-    if(!isValid(longUrl)){
+    //checking longUrl field is empty or not
+    if(!isValidChecker(longUrl)){
         return res.status(400).send({status: false, message: "longUrl is not present"})
     }
 
+    // If the longUrl field have some value then we will use trim()
     longUrl = longUrl.trim()
 
-    if(!validUrl.isUri(baseUrl)){
-        return res.status(400).send({status: false, message: "baseUrl you entered is not a valid url format"})
-    }
-
-    if(!validUrl.isUri(longUrl)){
+    // Checking the longurl includes "//" or not 
+    if(!(longUrl.includes("//"))){
         return res.status(400).send({status:false,message:"Invalid longUrl"})
     }
-     
-    // const cachedUrlData = await GET_ASYNC (`${longUrl}`)
-    // if(cachedUrlData) return res.status(200).send({status: true, Data: JSON.parse(cachedUrlData)})
 
+    //dividing longUrl into 2 parts scheme and uri, Scheme is the part which is come before the "//" and uri is come after the "//"
+    const urlParts = longUrl.split("//")
+    const scheme = urlParts[0]
+    const uri = urlParts[1]
+
+    // Uri should also inclued the "."
+    if(!(uri.includes("."))){
+        return res.status(400).send({status:false,message:"Invalid longUrl"})
+    }
+    const uriParts = uri.split(".")
+    
+    // Scheme should be http: or https: and also we are checking that the length of uriPart, before "." and after "." should not be equal to 0 means it should have some texts.
+    if(!( ((scheme == "http:") || (scheme == "https:")) && (uriParts[0].trim().length) && (uriParts[1].trim().length) )){
+        return res.status(400).send({status:false,message:"Invalid longUrl"})
+    }
+
+    //Checking if the longurl is already present in DB then we will show the whole data.
     const isLongUrlExist = await urlModel.findOne({longUrl: longUrl}).select({urlCode:1,longUrl:1,shortUrl:1,_id:0})
     if(isLongUrlExist){
         return res.status(200).send({status: true, Data: isLongUrlExist})
     }
 
-
+    //generating urlCode of length 6 using inbuilt .generate()
     const urlCode = shortId.generate().toLowerCase()
 
-    // const cachedUrlCode = await GET_ASYNC (`${urlCode}`)
-    // if(cachedUrlCode) return res.status(200).send({status: true, message: "urlCode is already present in DB. Please hit this API again."})
-
+    //if the urlCode exist in DB then we will show that the URLCODE is already in DB. 
     const isUrlCodeExist = await urlModel.findOne({urlCode: urlCode})
     if(isUrlCodeExist){
         return res.status(200).send({status: true, message: "urlCode is already present in DB. Please hit this API again."})
     }
-
 
     const shortUrl = baseUrl+"/"+urlCode
 
@@ -90,7 +97,7 @@ const createShortUrl = async function(req,res){
     const createUrl = await urlModel.create(finalData)
 
     if(createUrl) {
-        await SET_ASYNC (`${longUrl}`, JSON.stringify(finalData))
+        //setting longUrl in the cache
         await SET_ASYNC (`${urlCode}`, JSON.stringify(longUrl))
         res.status(201).send({status:true,data:finalData})
     }
@@ -101,10 +108,12 @@ const getUrl = async function (req, res){
     try{
         const urlCode = req.params.urlCode
 
+        // .isValid() is an inbuilt function.
         if(!shortId.isValid(urlCode)){
             return res.status(400).send({status: false, message: "Invalid urlCode"})
         }
 
+        //getting the data from cache...
         const isCachedLongUrl = await GET_ASYNC (urlCode)
         const parsedLongUrl = JSON.parse(isCachedLongUrl)
 
@@ -115,8 +124,10 @@ const getUrl = async function (req, res){
             const findUrl = await urlModel.findOne({urlCode: urlCode})
             if(!findUrl)
                 return res.status(404).send({status: false, message: "UrlCode not found"})
-            await SET_ASYNC(`${urlCode}`, JSON.stringify(findUrl.longUrl))
-            return res.status(302).redirect(findUrl.longUrl)
+            else{
+                await SET_ASYNC(`${urlCode}`, JSON.stringify(findUrl.longUrl))
+                return res.status(302).redirect(findUrl.longUrl)
+            }
         }
     }
     catch (error){
